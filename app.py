@@ -3,7 +3,9 @@ import pandas as pd
 import joblib
 
 # Load encoded data
-data = pd.read_csv("processed_npi_data.csv")
+data = pd.read_csv(
+    "processed_npi_data.csv", dtype={"NPI": str}
+)  # Ensure NPI is read as a string
 
 # Load label encoders
 label_encoders = joblib.load("label_encoders.pkl")
@@ -44,12 +46,16 @@ for col in ["State", "Region", "Speciality"]:
 
 if not filtered_data.empty:
     st.subheader("👨‍⚕️ Doctors Likely to Attend at This Time:")
+
+    # Convert NPI to string to prevent scientific notation
+    filtered_data["NPI"] = filtered_data["NPI"].astype(str)
+
     st.dataframe(
         filtered_data[["NPI", "State", "Region", "Speciality"]].reset_index(drop=True),
         use_container_width=True,
     )
 
-    # Prepare CSV
+    # Prepare CSV with NPI as a string
     csv = filtered_data.to_csv(index=False).encode("utf-8")
 
     # Download Button
