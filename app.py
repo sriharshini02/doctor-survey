@@ -25,7 +25,8 @@ if st.button("Get Likely Participants"):
     selected_npis = data.loc[predictions == 1, "NPI"]
 
     # Create downloadable CSV
-    csv = selected_npis.to_csv(index=False)
+    csv = selected_npis.astype(str).to_csv(index=False)
+
     st.download_button(
         "Download CSV", data=csv, file_name="likely_doctors.csv", mime="text/csv"
     )
