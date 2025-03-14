@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import csv
 
 # Load the trained model and data
 model = joblib.load("npi_rf_model.pkl")
