@@ -2,31 +2,62 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-# Load the trained model and data
-model = joblib.load("npi_rf_model.pkl")
+# Load encoded data
 data = pd.read_csv("processed_npi_data.csv")
 
-st.title("Doctor Survey Prediction App")
+# Load label encoders
+label_encoders = joblib.load("label_encoders.pkl")
 
-# Get user input for time
-login_hour = st.number_input(
-    "Enter Login Hour (0-23):", min_value=0, max_value=23, step=1
-)
+# Reverse the encoding mappings (convert numbers back to labels)
+decoded_mappings = {
+    col: {v: k for k, v in label_encoders[col].items()} for col in label_encoders
+}
 
-if st.button("Get Likely Participants"):
-    # Prepare input data
-    input_data = data.copy()
-    input_data["Login Hour"] = login_hour
-    predictions = model.predict(
-        input_data.drop(columns=["NPI", "Count of Survey Attempts"])
+st.title("🩺 Doctor Survey Prediction App")
+
+# User input section
+st.markdown("### 🕒 Select the Time")
+col1, col2 = st.columns(2)
+
+with col1:
+    hour = st.selectbox("Hour:", list(range(1, 13)), index=6)
+with col2:
+    ampm = st.radio("AM/PM:", ["AM", "PM"], horizontal=True)
+
+# Convert hour to 24-hour format
+if ampm == "PM" and hour != 12:
+    hour += 12
+elif ampm == "AM" and hour == 12:
+    hour = 0
+
+st.markdown("---")  # Adds a separator for better visual structure
+
+# Filter doctors based on predicted time
+filtered_data = data[data["Login Hour"] == hour].copy()
+
+# Decode categorical values safely
+for col in ["State", "Region", "Speciality"]:
+    if col in filtered_data.columns:
+        filtered_data.loc[:, col] = (
+            filtered_data[col].map(decoded_mappings[col]).fillna("Unknown")
+        )
+
+if not filtered_data.empty:
+    st.subheader("👨‍⚕️ Doctors Likely to Attend at This Time:")
+    st.dataframe(
+        filtered_data[["NPI", "State", "Region", "Speciality"]].reset_index(drop=True),
+        use_container_width=True,
     )
 
-    # Get NPIs of predicted positive cases
-    selected_npis = data.loc[predictions == 1, "NPI"]
+    # Prepare CSV
+    csv = filtered_data.to_csv(index=False).encode("utf-8")
 
-    # Create downloadable CSV
-    csv = selected_npis.astype(str).to_csv(index=False)
-
+    # Download Button
     st.download_button(
-        "Download CSV", data=csv, file_name="likely_doctors.csv", mime="text/csv"
+        label="📥 Download CSV",
+        data=csv,
+        file_name="doctors_at_selected_time.csv",
+        mime="text/csv",
     )
+else:
+    st.warning("⚠️ No doctors found for the selected time.")
